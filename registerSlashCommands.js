@@ -1,23 +1,35 @@
 const { REST, Routes } = require('discord.js')
 const fs = require('fs')
+const path = require('path');
+const { readdir } = require('fs').promises;
+
 
 const CLIENT_ID = process.env.CLIENT_ID
 const TOKEN = process.env.TOKEN
 
+async function getFiles(dir) {
+    const dirents = await readdir(dir, { withFileTypes: true });
+    const files = await Promise.all(dirents.map((dirent) => {
+      const res = path.resolve(dir, dirent.name);
+      return dirent.isDirectory() ? getFiles(res) : res;
+    }));
+    return (Array.prototype.concat(...files)).filter(f=>f.endsWith('.js'));
+}
+// and deploy your commands!
+(async () => {
 const commands = []
-const commandFiles = fs
-    .readdirSync('./slashCommands')
-    .filter((file) => file.endsWith('.js'))
+const slashCommandsPath = path.join(__dirname, 'slashCommands')
+const slashCommandFiles = await getFiles(slashCommandsPath)
 
-for (const file of commandFiles) {
-    const command = require(`./slashCommands/${file}`)
+console.log(slashCommandFiles)
+
+for (const file of slashCommandFiles) {
+    const command = require(file)
     commands.push(command.data.toJSON())
 }
 
-const rest = new REST({ version: '10' }).setToken(TOKEN)
+const rest = new REST({ version: '10' }).setToken(TOKEN);
 
-// and deploy your commands!
-;(async () => {
     try {
         console.log(
             `Started refreshing ${commands.length} application (/) commands.`

@@ -5,6 +5,8 @@ const PREFIX = process.env.PREFIX
 
 const { Client, Events, GatewayIntentBits, Collection } = require('discord.js')
 
+const version = "0.0.1";
+
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -107,6 +109,8 @@ client.on(Events.MessageCreate, async (message) => {
 client.once(Events.ClientReady, (client) => {
     require('./registerSlashCommands')
     console.log(`Ready! Logged in as ${client.user.tag}`)
+    client.user.setPresence({ activities: [{ name: `Updating... | v${version}`, type: "STREAMING" }], status: 'idle' });
 })
+
 
 client.login(TOKEN)

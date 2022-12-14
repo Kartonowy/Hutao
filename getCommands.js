@@ -1,22 +1,29 @@
-const path = require('path')
-const fs = require('fs')
-module.exports = (client) => {
+const path = require('path');
+const { readdir } = require('fs').promises;
+
+async function getFiles(dir) {
+    const dirents = await readdir(dir, { withFileTypes: true });
+    const files = await Promise.all(dirents.map((dirent) => {
+      const res = path.resolve(dir, dirent.name);
+      return dirent.isDirectory() ? getFiles(res) : res;
+    }));
+    return (Array.prototype.concat(...files)).filter(f=>f.endsWith('.js'));
+}
+  
+module.exports = async (client) => {
     /*
      * SLASH COMMANDS
      * */
     const slashCommandsPath = path.join(__dirname, 'slashCommands')
-    const slashCommandFiles = fs
-        .readdirSync(slashCommandsPath)
-        .filter((file) => file.endsWith('.js'))
-
+    const slashCommandFiles = await getFiles(slashCommandsPath)
     for (const file of slashCommandFiles) {
-        const filePath = path.join(slashCommandsPath, file)
-        const command = require(filePath)
-        if ('data' in command && 'execute' in command) {
-            client.slashCommands.set(command.data.name, command)
+        console.log(file)
+        const slashCommand = require(file)
+        if ('data' in slashCommand && 'execute' in slashCommand) {
+            client.slashCommands.set(slashCommand.data.name, slashCommand)
         } else {
             console.log(
-                `[WARNING] The slash command at ${filePath} is missing a required "data" or "execute" property.`
+                `[WARNING] The slash command at ${file} is missing a required "data" or "execute" property.`
             )
         }
     }
@@ -25,20 +32,17 @@ module.exports = (client) => {
      * COMMANDS
      * */
     const commandsPath = path.join(__dirname, 'commands')
-    const commandFiles = fs
-        .readdirSync(commandsPath)
-        .filter((file) => file.endsWith('.js'))
+    const commandFiles = await getFiles(commandsPath)
 
     for (const file of commandFiles) {
-        const filePath = path.join(commandsPath, file)
-        const command = require(filePath)
+        const command = require(file)
         if ('execute' in command) {
             for (const id of command.id) {
                 client.commands.set(id.toLowerCase(), command)
             }
         } else {
             console.log(
-                `[WARNING] The command at ${filePath} is missing a required "execute" property.`
+                `[WARNING] The command at ${file} is missing a required "execute" property.`
             )
         }
     }
